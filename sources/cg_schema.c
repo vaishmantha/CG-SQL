@@ -1441,7 +1441,16 @@ static void cg_schema_manage_recreate_tables(
       table_crc ^= crc_charbuf(&child_group_drops);
     }
     for (size_t j = 0; j < drop_count; j++) {
-      bprintf(&update_proc, "    CALL %s_cql_set_facet_version('%s_crc', %lld);\n", global_proc_name, neighbors[j], (llint_t)table_crc);
+      bprintf(&update_proc, "    CALL %s_cql_set_facet_version('%s_crc', %lld);\n",
+        global_proc_name,
+        neighbors[j],
+        (llint_t)table_crc);
+      // Need to update initially saved facets table so that the facet table diff that is returned at the end of schema upgrade
+      // captures that these child group table facets were recreated.
+      bprintf(&update_proc, "    INSERT OR REPLACE INTO %s_cql_schema_facets_saved VALUES('%s_crc', %lld);\n",
+        global_proc_name,
+        neighbors[j],
+        (llint_t)table_crc);
     }
     CHARBUF_CLOSE(child_group_drops);
 
