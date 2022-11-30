@@ -1442,15 +1442,15 @@ static void cg_schema_manage_recreate_tables(
     if (strlen(child_group_drops.ptr) != 0) {
       bprintf(&update_proc, "    IF NOT %s_result THEN \n", migrate_key);
       bprintf(&update_proc, child_group_drops.ptr);
-      bprintf(&update_proc, "    END IF; \n");
       // Updating the CRC for any child group tables we dropped
+      for (size_t j = 0; j < drop_count; j++) {
+        bprintf(&update_proc, "    CALL %s_cql_set_facet_version('%s_crc', -1L);\n", global_proc_name, neighbors[j]);
+        // Need to update initially saved facets table so that the facet table diff that is returned at the end of
+        // schema upgrade captures that these child group table facets were recreated.
+        bprintf(&update_proc, "    CALL %s_cql_schema_delete_saved_facet('%s_crc');\n", global_proc_name, neighbors[j]);
+      }
+      bprintf(&update_proc, "    END IF; \n");
       table_crc ^= crc_charbuf(&child_group_drops);
-    }
-    for (size_t j = 0; j < drop_count; j++) {
-      bprintf(&update_proc, "    CALL %s_cql_set_facet_version('%s_crc', -1L);\n", global_proc_name, neighbors[j]);
-      // Need to update initially saved facets table so that the facet table diff that is returned at the end of schema
-      // upgrade captures that these child group table facets were recreated.
-      bprintf(&update_proc, "    CALL %s_cql_schema_delete_saved_facet('%s_crc');\n", global_proc_name, neighbors[j]);
     }
     CHARBUF_CLOSE(child_group_drops);
 
