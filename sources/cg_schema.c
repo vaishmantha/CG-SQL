@@ -318,6 +318,12 @@ static void cg_schema_helpers(charbuf *decls) {
   bprintf(decls, "BEGIN\n");
   bprintf(decls, "  INSERT INTO cql_schema_rebuilt_tables VALUES(facet);\n");
   bprintf(decls, "END;\n\n");
+
+  bprintf(decls, "-- helper proc to delete facet from cql_schema_facets_saved table --\n");
+  bprintf(decls, "CREATE PROCEDURE %s_cql_schema_delete_saved_facet(delete_facet TEXT NOT NULL)\n", global_proc_name);
+  bprintf(decls, "BEGIN\n");
+  bprintf(decls, "  DELETE FROM %s_cql_schema_facets_saved WHERE facet = delete_facet;\n", global_proc_name);
+  bprintf(decls, "END;\n\n");
 }
 
 // Emit the delcaration of the sqlite_master table so we can read from it.
@@ -1444,9 +1450,7 @@ static void cg_schema_manage_recreate_tables(
       bprintf(&update_proc, "    CALL %s_cql_set_facet_version('%s_crc', -1L);\n", global_proc_name, neighbors[j]);
       // Need to update initially saved facets table so that the facet table diff that is returned at the end of schema
       // upgrade captures that these child group table facets were recreated.
-      bprintf(&update_proc, "    DELETE FROM %s_cql_schema_facets_saved WHERE facet = '%s_crc';\n",
-        global_proc_name,
-        neighbors[j]);
+      bprintf(&update_proc, "    CALL %s_cql_schema_delete_saved_facet('%s_crc');\n", global_proc_name, neighbors[j]);
     }
     CHARBUF_CLOSE(child_group_drops);
 
